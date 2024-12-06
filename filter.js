@@ -5,9 +5,13 @@
  * @example
  * HTML
  * <div id="contenitore-card">
- *  <div class="item" data-progetto="progetto1" data-regione="regione1">...</div>
+ *  <div class="item">
+ *      <div class="" data-progetto="progetto1" data-regione="regione1">...</div>
+ *  </div>
  *  ...
- *  <div class="item" data-progetto="progetto2" data-regione="regione2">...</div>
+ *  <div class="item">
+ *      <div class="" data-progetto="progetto1" data-regione="regione1">...</div> 
+ *  </div>
  * </div>
  * 
  * JS
@@ -23,7 +27,6 @@
  *  },
  *  selects: {
  *      class: 'form-select',
- *      firstItem: 'Scegli ',
  *      config: [
  *          {
  *              filter: 'progetto',
@@ -40,7 +43,9 @@
     var CardFilterOptions = {
         pagination: {
             enabled: true,
-            limit: 20
+            limit: 20,
+            limitT: 20,
+            limitD: 20
         },
         button: {
             class: 'primary',
@@ -48,7 +53,6 @@
         },
         selects: {
             class: 'form-select',
-            firstItem: 'Scegli ',
             config: [
                 {
                     filter: '',
@@ -69,6 +73,8 @@
         items: null,
         showItems: [],
         pageClass: '',
+        viewportWidth: 0,
+        limit: 0,
         /**
          * @function buildSelect
          * @private 
@@ -83,7 +89,7 @@
             let filter = property.filter;
             let dependencie = property.dependencie;
             let select = $('<select name="' + filter + '" class="' + this.options.selects.class + ' me-3 mb-3"></select>');
-            select.append('<option value="">' + this.options.selects.firstItem + label + '</option>');
+            select.append('<option value="">' + label + '</option>');
             if (!dependencie) {
                 try {
                     _this.items.each(function () {
@@ -148,7 +154,7 @@
             let _this = this;
             let pages = 1;
             if (this.options.pagination.enabled) {
-                pages = Math.ceil(parseInt(_this.showItems.length) / parseInt(this.options.pagination.limit));
+                pages = Math.ceil(parseInt(_this.showItems.length) / parseInt(this.limit));
             }                   
             for (let i = 0; i < pages; i++) {
                 let page = this.buildPage(i, _this.showItems);
@@ -168,7 +174,7 @@
             let pagination = '';
             let _this = this;
             if (this.options.pagination.enabled) {
-                pagination = container.parent().find('nav.pagination__wrapper');
+                pagination = container.parent().find('nav.pagination__wrapper');                
                 if (pagination.length == 0) {
                     pagination = $('<nav class="pagination__wrapper"></nav>');
                     container.after(pagination);
@@ -176,18 +182,17 @@
                     pagination.html('');
                 }
 
-                let pages = Math.ceil(_this.showItems.length / this.options.pagination.limit);
-
+                let pages = Math.ceil(_this.showItems.length / this.limit);                
                 let ul = $('<ul class="pagination ms-0 mb-4"></ul>');
-                if (pages > 1 && pages < 10) {
+                if (pages > 1 && pages <= 10) {
                     for (let i = 0; i < pages; i++) {
                         let li = $('<li class="page-item" data-page="' + i + '"><a class="page-link">' + (i + 1) + '</a></li>');
                         li.on('click', function () {
-                            let page = $(this).attr('data-page');
-                            _this.emitChangePage(page);
+                            let page = $(this).attr('data-page');                            
                             container.find('div.pagetab').removeClass('show');
                             container.find('div.pagetab[data-page="' + page + '"]').addClass('show');
                             _this.buildPagination(container, page);
+                            _this.emitChangePage(page);
                         })
                         ul.append(li);
                     }                    
@@ -207,11 +212,11 @@
                     for (let i = start; i <= end; i++) {
                         let li = $('<li class="page-item" data-page="' + i + '"><a class="page-link">' + (i + 1) + '</a></li>');
                         li.on('click', function () {
-                            let page = $(this).attr('data-page');
-                            _this.emitChangePage(page);
+                            let page = $(this).attr('data-page');                            
                             container.find('div.pagetab').removeClass('show');
                             container.find('div.pagetab[data-page="' + page + '"]').addClass('show');
                             _this.buildPagination(container, page);
+                            _this.emitChangePage(page);                            
                         })
                         ul.append(li);
                     }                    
@@ -232,8 +237,8 @@
             let page = $('<div class="page pagetab" data-page="' + index + '"></div>');
             page.addClass(this.pageClass);
             if (this.options.pagination.enabled) {
-                let start = index * this.options.pagination.limit;
-                let end = start + this.options.pagination.limit;
+                let start = index * this.limit;
+                let end = start + this.limit;
                 items.forEach(function (elem, index) {
                     if (index >= start && index < end) {
                         page.append($(elem));
@@ -257,7 +262,8 @@
             /**
              * @event changePage
              * @param {object} data { 'pageNumber': Numero di pagina cliccato }
-             */
+            */
+            $(window).trigger('resize');
             this.element.trigger('changePage', { 'pageNumber': page_num });
         },
         emitAfterInit: function (container) {
@@ -278,6 +284,15 @@
 
             return this.element.each(function () {
                 let container = $(this);
+                _this.viewportWidth = window.innerWidth;
+                _this.limit = _this.options.pagination.limit;
+                
+                if (_this.viewportWidth > 768 && _this.options.pagination.limitT) {                    
+                    _this.limit = _this.options.pagination.limitT;
+                }
+                if (_this.viewportWidth > 1024 && _this.options.pagination.limitD) {                    
+                    _this.limit = _this.options.pagination.limitD;
+                }
                 _this.pageClass = container.attr('class');
                 let divfilter = $('<div class="filter-container"></div>');
                 let row = $('<div class="row"></div>');
@@ -325,7 +340,7 @@
                         row.find('select[name="' + elem.dependencie + '"]').on('change', function () {
                             let value = $(this).val();
                             select.html('');
-                            select.append('<option value="">' + _this.options.selects.firstItem + elem.label + '</option>');
+                            select.append('<option value="">' + elem.label + '</option>');
                             let values = [];
                             _this.items.each(function () {
                                 let val = $(this).find('[data-' + elem.dependencie + '="' + value + '"]').attr('data-' + elem.filter);
